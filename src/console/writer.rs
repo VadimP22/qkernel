@@ -1,4 +1,4 @@
-use core::fmt;
+use core::fmt::{self, Write};
 
 use spin::Mutex;
 
@@ -47,7 +47,22 @@ impl VGAWriter {
         }
     }
 
-    pub fn new_line(&mut self) {}
+    fn new_line(&mut self) {
+        for row in 1..VGA_BUFFER_HEIGHT {
+            for col in 0..VGA_BUFFER_WIDTH {
+                let char = self.vga_buffer.chars[row][col];
+                self.vga_buffer.chars[row - 1][col] = char;
+            }
+        }
+        self.clean_row(VGA_BUFFER_HEIGHT - 1);
+        self.current_column = 0;
+    }
+
+    fn clean_row(&mut self, row: usize) {
+        for col in &mut self.vga_buffer.chars[row] {
+            col.ascii_character = ' ' as u8;
+        }
+    }
 
     pub fn set_color(&mut self, new_color: VGAColor) {
         self.current_color = new_color;
@@ -86,3 +101,10 @@ impl fmt::Write for VGAWriter {
 }
 
 pub static mut VGA_WRITER: Mutex<Initializible<VGAWriter>> = Mutex::new(Initializible::new());
+
+#[doc(hidden)]
+pub fn _vga_print(args: fmt::Arguments) {
+    unsafe {
+        VGA_WRITER.lock().write_fmt(args).unwrap();
+    }
+}
